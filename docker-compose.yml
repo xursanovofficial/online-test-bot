@@ -1,0 +1,27 @@
+services:
+  app:
+    image: xursanov70/online_test_bot:v1.0.0
+    restart: unless-stopped
+    ports:
+      - 7777:80
+    env_file:
+      - path: ./.env
+        required: false
+    volumes:
+      - bot_storage:/var/www/storage
+
+  db:
+    image: postgres:latest
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: Xaen4aa4Upoodoh0
+      POSTGRES_DB: bot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  bot_storage:
+  db_data:

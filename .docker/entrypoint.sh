@@ -20,6 +20,7 @@ else
 fi
 
 echo "Running pre-start commands..."
+php artisan migrate
 php artisan storage:link
 php artisan app:make-webhook
 

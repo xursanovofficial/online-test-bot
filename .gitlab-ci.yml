@@ -1,5 +1,5 @@
 include: 
-  - project: telegram-bot9690247/devops/ci-templates
+  - project: my-work9690247/devops/ci-templates
     ref: main
     file:
       - build-template.yml

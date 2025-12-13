@@ -411,7 +411,7 @@ class TelegramHandler extends WebhookHandler
 
         $fileUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePath}";
 
-        $storagePath = "documents/$filename";
+        $storagePath = "public/documents/$filename";
 
         $fileContent = file_get_contents($fileUrl);
         Storage::disk('public')->put($storagePath, $fileContent);

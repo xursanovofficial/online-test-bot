@@ -68,7 +68,7 @@ RUN apk add --no-cache \
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 # Create non-root user
-RUN addgroup --gid 1005 -S appgroup && adduser --uid 1005 -S appuser -G appgroup
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Copy built application
 COPY --from=builder --chown=appuser:appgroup /var/www .

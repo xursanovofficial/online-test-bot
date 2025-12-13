@@ -43,7 +43,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignor
 
 # Copy application
 COPY . .
-RUN composer dump-autoload --optimize --no-dev
+RUN composer dump-autoload
 
 
 # PRODUCTION STAGE
@@ -72,6 +72,8 @@ RUN addgroup --gid 1005 -S appgroup && adduser --uid 1005 -S appuser -G appgroup
 
 # Copy built application
 COPY --from=builder --chown=appuser:appgroup /var/www .
+COPY --from=build /usr/local/lib/php/extensions /usr/local/lib/php/extensions
+COPY --from=build /usr/local/etc/php/conf.d /usr/local/etc/php/conf.d
 COPY ./.docker/local.ini $PHP_INI_DIR/conf.d/custom.ini
 COPY ./.docker/nginx.conf /etc/nginx/nginx.conf
 COPY ./.docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-app.conf

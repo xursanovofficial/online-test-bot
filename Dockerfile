@@ -2,23 +2,22 @@ ARG PHP_VERSION=8.3
 ARG COMPOSER_VERSION=2.7
 
 # BASE STAGE
-FROM php:${PHP_VERSION}-fpm-alpine AS base
+FROM php:${PHP_VERSION}-fpm-alpine AS build
 
 WORKDIR /var/www
 
 # Install system dependencies
 RUN apk add --no-cache --virtual .build-deps \
     libzip-dev \
-    icu-dev \
+    libpng-dev \
     oniguruma-dev \
     postgresql-dev \
     autoconf \
     g++ \
     make \
     pkgconfig \
-    linux-headers \
-    zip \
-    unzip
+    icu-dev \
+    linux-headers
 
 # Install PHP extensions
 RUN docker-php-ext-configure intl
@@ -29,6 +28,7 @@ RUN docker-php-ext-install \
     bcmath \
     zip \
     mbstring \
+    gd \
     sockets
 
 
@@ -43,7 +43,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignor
 
 # Copy application
 COPY . .
-RUN composer dump-autoload
+RUN composer dump-autoload --optimize --no-dev
 
 
 # PRODUCTION STAGE
@@ -62,8 +62,7 @@ RUN apk add --no-cache \
     zip \
     unzip \
     sqlite \
-    sqlite-libs \
-    bash
+    sqlite-libs
 
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"

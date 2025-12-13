@@ -9,7 +9,7 @@ services:
         required: false
     volumes:
       - bot_storage:/var/www/storage
-      - bot_base:/var/www/database/database.sqlite
+      - bot_base:/var/www/database
 
   # scheduler:
   #   image: ${DC_CRON_IMAGE_NAME}:${DC_CRON_IMAGE_TAG}

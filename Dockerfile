@@ -9,15 +9,16 @@ WORKDIR /var/www
 # Install system dependencies
 RUN apk add --no-cache --virtual .build-deps \
     libzip-dev \
-    libpng-dev \
+    icu-dev \
     oniguruma-dev \
     postgresql-dev \
     autoconf \
     g++ \
     make \
     pkgconfig \
-    icu-dev \
-    linux-headers
+    linux-headers \
+    zip \
+    unzip
 
 # Install PHP extensions
 RUN docker-php-ext-configure intl
@@ -61,7 +62,8 @@ RUN apk add --no-cache \
     zip \
     unzip \
     sqlite \
-    sqlite-libs
+    sqlite-libs \
+    bash
 
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"

@@ -7,9 +7,7 @@ use App\Models\Question;
 use App\Models\QuestionName;
 use App\Models\User;
 use App\Models\UserRating;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class QuestionController extends Controller
 {
@@ -35,8 +33,9 @@ class QuestionController extends Controller
         if (!$user) {
             abort(404, 'User not found');
         }
+
         $freeTest = QuestionName::where('chat_id', $chatId)->where('id', $questionNameId)->where('free', true)->first();
-        if (!$freeTest) {
+        if (!$freeTest && !$user->admin) {
             $payment = Payment::where('chat_id', $chatId)->where('active', true)->where('end_date', '>=', date('Y-m-d'))->first();
             if (!$payment) {
                 return view("payment-day");
@@ -76,7 +75,6 @@ class QuestionController extends Controller
 
     public function makeUserRating(Request $request)
     {
-        Log::info('salom');
         $userRating = UserRating::where("chat_id", $request->chat_id)->first();
         if (!$userRating) {
             UserRating::create([

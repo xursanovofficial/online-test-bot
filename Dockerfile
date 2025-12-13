@@ -73,6 +73,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder --chown=appuser:appgroup /var/www .
 COPY ./.docker/local.ini $PHP_INI_DIR/conf.d/custom.ini
 COPY ./.docker/nginx.conf /etc/nginx/nginx.conf
+COPY ./.docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-app.conf
 
 
 # Configure permissions and directories for nginx

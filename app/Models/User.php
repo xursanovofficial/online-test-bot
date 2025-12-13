@@ -31,6 +31,7 @@ class User extends Authenticatable
     const PREPARING_TEST = "preparing_test";
     const ADD_RULE = "add_rule";
     const REMOVE_RULE = "remove_rule";
+    const MAKE_STIKER = 'make_stiker';
 
 
     /**

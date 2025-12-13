@@ -12,8 +12,12 @@ use DefStudio\Telegraph\Handlers\WebhookHandler;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
 use DefStudio\Telegraph\Keyboard\ReplyKeyboard;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\IOFactory;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Stringable;
 
 class TelegramHandler extends WebhookHandler
@@ -24,23 +28,18 @@ class TelegramHandler extends WebhookHandler
         if ($this->message) {
             $firstName = $this->message->from()->firstName();
             $username = $this->message->from()->username();
-            $lastName = $this->message->from()->lastName();
             $chatId = $this->message->from()->id();
             $user = $this->createUser($chatId, $firstName, $username);
         }
 
         $url = env('APP_URL');
         $admin = $user->admin ? true : false;
-        $storagePath = "public/documents/manual.mp4";
-        $localPath = Storage::disk('public')->path($storagePath);
 
-        Telegraph::chat($chatId)->html("Assalamu alaykum <b>$firstName\nOnline Test</b> botimizga xush kelibsiz!")
+        Telegraph::chat($chatId)->html("Assalamu alaykum <b>$firstName</b> xush kelibsiz!")
             ->replyKeyboard(
                 ReplyKeyboard::make()
                     ->button("Bosh sahifa 🏠")
-                    ->button("Qo'llanma ⭐️")
-                    ->button("To'lov 💳")
-                    ->button("Admin bilan aloqa 📞")
+                    ->button("Stiker yaratish 🪄")
                     ->button("Test yaratish 📕")
                     ->button('Test ishlash 📄')->webApp($url . "?chat_id=" . $chatId)
                     ->when($admin, fn(ReplyKeyboard $keyboard) => $keyboard->button("Huquq berish 🔐"))
@@ -49,18 +48,6 @@ class TelegramHandler extends WebhookHandler
                     ->inputPlaceholder("Assalamu alaykum...")
                     ->resize()
             )->send();
-
-            if (Storage::disk('public')->exists($storagePath)) {
-            $freeQuestionCount = env('FREE_QUESTION_COUNT');
-            $message = "Botdan foydalanish uchun qo'llanma☝🏻 \n
-🪄 Test yaratish bo'limida $freeQuestionCount martalik bepul test yarating\n
-🛎 <strong>Test ishlash</strong> bo'limida testlarni bajarib ko'ring va agar ma'qul kelsa botga to'lov qilib botdan to'liq foydalanish huquqini oling.\n\n";
-            Telegraph::chat($chatId)
-                ->video($localPath)
-                ->message($message)
-                ->send();
-            return;
-        }
     }
 
 
@@ -80,14 +67,21 @@ class TelegramHandler extends WebhookHandler
         switch ($text) {
             case "Bosh sahifa 🏠":
                 $this->updateUserPage($chatId, User::HOME_PAGE);
-                Telegraph::chat($chatId)->html("Siz <b>Bosh sahifa</b>dasiz!")->send();
+                Telegraph::chat($chatId)->html("<b>Siz Bosh sahifadasiz!</b>")->send();
                 return;
                 break;
+        }
+        if (!$this->checkUserPage($chatId, $text)) {
+            return;
         }
 
         switch ($user->page) {
             case User::PREPARING_TEST:
-                $this->makeTest($chatId, $text);
+                if (!$this->message->document()) {
+                    Telegraph::chat($chatId)->message("Iltimos, test yaratish uchun .docx formatdagi fayl yuboring!")->send();
+                    return;
+                }
+                $this->makeQuestion($chatId, $this->message->document());
                 break;
             case User::ENTER_TEST_NAME:
                 if (!$this->check($text)) {
@@ -95,6 +89,9 @@ class TelegramHandler extends WebhookHandler
                     return;
                 }
                 $this->verifyTestName($chatId, $text);
+                break;
+            case User::MAKE_STIKER:
+                $this->generateStiker($chatId, $text);
                 break;
             case User::ADD_RULE:
                 $this->manageRule($chatId, $text, true);
@@ -104,14 +101,8 @@ class TelegramHandler extends WebhookHandler
                 break;
             case User::HOME_PAGE:
                 switch ($text) {
-                    case "To'lov 💳":
-                        $this->sendInfo($chatId);
-                        break;
-                    case "Qo'llanma ⭐️":
-                        $this->manual($chatId);
-                        break;
-                    case "Admin bilan aloqa 📞":
-                        $this->contactAdmin($chatId);
+                    case "Stiker yaratish 🪄":
+                        $this->sendStikerInfo($chatId);
                         break;
                     case "Test yaratish 📕":
                         $this->enterTestName($chatId);
@@ -127,27 +118,120 @@ class TelegramHandler extends WebhookHandler
         }
     }
 
-    private function manual($chatId)
-    {
-        $storagePath = "public/documents/manual.mp4";
-        $localPath = Storage::disk('public')->path($storagePath);
 
-        $freeQuestionCount = env('FREE_QUESTION_COUNT');
-        $message = "Botdan foydalanish uchun qo'llanma: \n
-🪄 Test yaratish bo'limida $freeQuestionCount martalik bepul test yarating\n
-🛎 <strong>Test ishlash</strong> bo'limida testlarni bajarib ko'ring va agar ma'qul kelsa botga to'lov qilib botdan to'liq foydalanish huquqini oling.\n\n
-1. O'zingiz uchun test yarating. \n
-2. <strong>Test yaratish</strong> bo'limida ko'rsatilgan sun'iy intelekt yordamida formatlab oling \n
-3. Formatlangan savollar to'plamini bizga yuboring \n
-4. Biz siz yuborgan testlarni siz uchun <strong>Test ishlash</strong> bo'limida onlayn test ko'rinishida taqdim etamiz";
-        if (!Storage::disk('public')->exists($storagePath)) {
-            Telegraph::chat($chatId)
-                ->html($message)
-                ->send();
+    public function checkUserPage($chatId, $text)
+    {
+        $user = User::where('chat_id', $chatId)->first();
+        if (!$user) {
+            Telegraph::chat($chatId)->message("Foydalanuvchi topilmadi")->send();
             return;
         }
 
-        Telegraph::chat($chatId)->html($message)->video($localPath)->send();
+        if (($user->page != User::HOME_PAGE) && ($text == "To'lov 💳" || $text == "Stiker yaratish 🪄" || $text == "Test yaratish 📕" || $text == "Huquq berish 🔐" || $text == "Huquq olish 🔒")) {
+            Telegraph::chat($chatId)->message("<b>Siz bosh sahifada emassiz!</b>")->send();
+            return false;
+        }
+        return true;
+    }
+
+    private function sendStikerInfo($chatId)
+    {
+        Telegraph::chat($chatId)->message("<b>Iltimos, O'zingiz xohlagan stiker tavsifini yozing!</b>")->send();
+        Telegraph::chat($chatId)->message("<b>Misol uchun:\n</b><code>Make me beauty cat stiker!</code>")->send();
+        $this->updateUserPage($chatId, User::MAKE_STIKER);
+        return;
+    }
+
+
+    public function sendMediaGroup(string|int $chatId, array $media)
+    {
+        if (empty($media)) {
+            return null;
+        }
+
+        $parameters = [
+            'chat_id' => $chatId,
+            'media'   => json_encode($media, JSON_UNESCAPED_UNICODE)
+        ];
+        $this->updateUserPage($chatId, User::MAKE_STIKER);
+        return $this->sendRequest('sendMediaGroup', $parameters);
+    }
+
+    public function sendRequest(string $method, array $parameters = [])
+    {
+        $apiUrl = "https://api.telegram.org/bot" . env('BOT_TOKEN') . "/";
+        $url = $apiUrl . $method;
+
+        $response = Http::withoutVerifying()
+            ->timeout(30)
+            ->asForm()
+            ->post($url, $parameters);
+
+        return $response->json();
+    }
+
+
+    private function generateStiker($chatId, $text)
+    {
+        $processing = Telegraph::chat($chatId)->message("⚡ <b>So'rovingiz qayta ishlanmoqda...</b>\n\n📝 <b>Tavsif:</b> <code>$text</code>")->send();
+        $processingMessageId = $processing['result']['message_id'] ?? null;
+
+        $response = Http::withoutVerifying()
+            ->timeout(90)
+            ->withHeaders([
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json'
+            ])
+            ->post(env('EXTERNAL_API_URL'), [
+                'prompt' => $text
+            ]);
+
+        if (!$response->ok() || !$response->json('success')) {
+            Telegraph::chat($chatId)->message("❌ <b>Yorliq yaratilmadi</b>\n\n📝 <b>Tavsif:</b> <code>$text</code>\n\n🔧 Yaxshiroq tavsif bilan qayta urinib ko‘ring.")->send();
+            if ($processingMessageId) {
+                Telegraph::chat($chatId)->deleteMessage($processingMessageId)->send();
+            }
+
+            return;
+        }
+
+        // 3) Rasm URL larni olish
+        $images = $response->json('images') ?? $response->json('image_urls') ?? [];
+
+        if (count($images) === 0) {
+            Telegraph::chat($chatId)->message("❌ <b>Hech qanday yorliq qaytmadi</b>\n📝 <b>Tavsif:</b> <code>$text</code>")->send();
+
+            if ($processingMessageId) {
+                Telegraph::chat($chatId)->deleteMessage($processingMessageId)->send();
+            }
+
+            return;
+        }
+
+        $media = [];
+        foreach ($images as $i => $img) {
+            if ($i === 0) {
+                $media[] = [
+                    'type' => 'photo',
+                    'media' => $img,
+                    'caption' => "✅ " . count($images) . " ta yorliq tayyor!\n\n🎨 Tavsif: $text\n",
+                    'parse_mode' => 'HTML',
+                    'has_spoiler' => true,
+                ];
+            } else {
+                $media[] = [
+                    'type' => 'photo',
+                    'media' => $img,
+                    'has_spoiler' => true,
+                ];
+            }
+        }
+
+        $this->sendMediaGroup($chatId, $media);
+
+        if ($processingMessageId) {
+            Telegraph::chat($chatId)->deleteMessage($processingMessageId)->send();
+        }
     }
 
     public function check($text)
@@ -158,28 +242,11 @@ class TelegramHandler extends WebhookHandler
         return true;
     }
 
-    private function sendInfo($chatId)
-    {
-        $username = "https://t.me/" . env("USERNAME_TELEGRAM");
-        $paymentSum = env('PAYMENT_SUM');
-        // $message = "<i>kursiv</i>\n<em>kursiv</em>\n<u>tagiga chizilgan</u>\n<s>ustidan chizilgan</s>\n<del>ustidan chizilgan</del>\n<tg-spoiler>$paymentSum</tg-spoiler>\n<pre>block code</pre>\n";
-        $message = "<code>$chatId</code> ushbu ID raqamingizni va to'lov qilinganlik haqida chekni $username profilga yuboring!\nOylik to'lov summasi: <tg-spoiler>$paymentSum</tg-spoiler>";
-
-        Telegraph::chat($chatId)->html($message)->send();
-    }
-
     private function addRule($chatId, $addRule)
     {
         Telegraph::chat($chatId)->message("Iltimos, foydalanuvchi chat_id raqamini kiriting:")->send();
         $page = $addRule ? User::ADD_RULE : User::REMOVE_RULE;
         $this->updateUserPage($chatId, $page);
-    }
-
-    private function contactAdmin($chatId)
-    {
-        $envUsername = "https://t.me/" . env("USERNAME_TELEGRAM");
-        $message = "Savol va takliflar uchun $envUsername profilga murojaat qiling!";
-        Telegraph::chat($chatId)->html($message)->send();
     }
 
     private function manageRule($chatId, $userChatId, $addRule)
@@ -314,78 +381,183 @@ class TelegramHandler extends WebhookHandler
             "active" => false,
             "free" => false
         ]);
-        $AI = env("AI");
-        // $message = "Iltimos, quyidagi struktura bo'yicha testlar yozilgan faylni yuboring!";
-        $message = "Iltimos, $AI sun'iy intelekt saytiga kirib, testlar yozilgan faylingizni va pastdagi promptni sun'iy intelektga saytiga yuboring\n 
-Bu testlar yozilgan faylni formatlab beradi\n
-So'ngra bizga formatlangan testlar to'plamini yuboring";
-        $structuraMessage = "<pre>Put a ? at the end of each question in this file.
-For each question, if there are no options, write the fake options A), B), C) and D) among them, and make sure that the correct answer is included, and the remaining fake options are close in meaning to the correct answer.
-Randomly place the correct answer options A), B), C) and D) among the options.
-Please write the correct answer option below the options for each question in the form Javob: A</pre>";
-        $example = "Savollar ushbu ko'rinishda bo'lishi kerak: \n\n <b>Apple so'zining ma'nosi nima? \n\n A) olma \n B) nok \n C) behi \n D) uzum \n\n Javob: A</b>";
-        $warning = "Eslatib o'tamiz, savollar quyidagi tartibda bo'lmasa, savol va to'g'ri javoblar aralashib ketishi mumkin!";
+        $message = "Iltimos, Testlar yozilgan fayl yuboring";
         Telegraph::chat($chatId)->html($message)->send();
-        Telegraph::chat($chatId)->html($structuraMessage)->send();
-        Telegraph::chat($chatId)->html($example)->send();
-        Telegraph::chat($chatId)->html($warning)->send();
         $this->updateUserPage($chatId, User::PREPARING_TEST);
     }
 
-    private function makeTest($chatId, $text)
+    public function makeQuestion($chatId, $file)
     {
-        $questionName = QuestionName::where('chat_id', $chatId)->where('active', false)->orderBy('id', 'desc')->first();
+        $fileId = $file->id();
+        $botToken = env('BOT_TOKEN');
+        $response = Http::get("https://api.telegram.org/bot{$botToken}/getFile?file_id={$fileId}");
+        $fileInfo = $response->json();
 
-        $text = preg_replace('/(?<!\n)([A-D]\))/', "\n$1", $text);
-        $text = preg_replace('/(?<!\n)(Javob:)/', "\n$1", $text);
-        $text = preg_replace('/[ \t]+/', ' ', $text);
-        $text = preg_replace("/\n{2,}/", "\n", $text);
-
-        $fileContext = trim(html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8')) . "\n";
-
-        $pattern = '/(.*?)\nA\)(.*?)\nB\)(.*?)\nC\)(.*?)\nD\)(.*?)\nJavob:\s*(.*?)(?:\n(?=\d+\.\s)|\s*$)/s';
-        preg_match_all($pattern, $fileContext, $matches, PREG_SET_ORDER);
-
-        $questions = [];
-        $testNumber = 1;
-
-        foreach ($matches as $match) {
-            $question = preg_replace('/^\d+\.\s*/', '', trim($match[1]));
-            $a = trim($match[2]);
-            $b = trim($match[3]);
-            $c = trim($match[4]);
-            $d = trim($match[5]);
-            $correct = strtolower(trim($match[6]));
-
-            $questions[] = [
-                'title' => $question,
-                'a_variant' => $a,
-                'b_variant' => $b,
-                'c_variant' => $c,
-                'd_variant' => $d,
-                'correct_answer' => $correct,
-                'key' => $questionName->question_name,
-                'active' => true,
-                'test_number' => $testNumber,
-                'question_name_id' => $questionName->id
-            ];
-
-            $testNumber++;
+        if (!$fileInfo['ok']) {
+            throw new \Exception('Fayl ma\'lumotlarini olishda xato yuz berdi.');
         }
 
-        if (empty($questions)) {
-            Telegraph::chat($chatId)->message("Iltimos testlar to'plamini ko'rsatilgan struktura bo'yicha yuboring!")->send();
+        $filePath = $fileInfo['result']['file_path'];
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+
+        if (strtolower($extension) !== 'docx') {
+            Telegraph::chat($chatId)
+                ->message('Iltimos, test yaratish uchun .docx formatdagi fayl yuboring!')
+                ->send();
             return;
         }
-        Question::insert($questions);
-        $freeQuestionCount = QuestionName::where('chat_id', $chatId)->where('active', true)->where('free', true)->count();
-        $questionName->update([
-            'active' => true,
-            'free' => $freeQuestionCount < env('FREE_QUESTION_COUNT') ? true : false
-        ]);
-        $this->updateUserPage($chatId, User::HOME_PAGE);
-        Telegraph::chat($chatId)->message("Testlar muvaffaqqiyatli yaratildi!")->send();
-        Telegraph::chat($chatId)->html("Yaratilgan testlarni <b>Test ishlash</b> bo'limida ko'rishingiz mumkin!")->send();
+
+        $filename = 'document_' . time() . '_' . uniqid() . '.' . $extension;
+
+        $fileUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePath}";
+
+        $storagePath = "public/documents/$filename";
+
+        $fileContent = file_get_contents($fileUrl);
+        Storage::disk('public')->put($storagePath, $fileContent);
+
+        if (!Storage::disk('public')->exists($storagePath)) {
+            Telegraph::chat($chatId)
+                ->message('Fayl topilmadi!')
+                ->send();
+            return;
+        }
+
+        Telegraph::chat($chatId)->message("⏳ Testlar yaratilishi boshlandi...")->send();
+        $this->generateQuestion($chatId, $storagePath);
+        $this->deleteFile($storagePath);
+    }
+
+    public function deleteFile(string $path)
+    {
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
+
+    public function generateQuestion($chatId, $storagePath)
+    {
+        $localPath = Storage::disk('public')->path($storagePath);
+
+        $file = new \SplFileObject($localPath);
+
+        DB::beginTransaction();
+
+        try {
+
+            $phpWord = IOFactory::load($file->getPathname());
+            $text = '';
+
+            foreach ($phpWord->getSections() as $section) {
+                foreach ($section->getElements() as $element) {
+                    if ($element instanceof \PhpOffice\PhpWord\Element\Text) {
+                        $text .= $element->getText() . "\n";
+                    } elseif ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
+                        foreach ($element->getElements() as $textElement) {
+                            if ($textElement instanceof \PhpOffice\PhpWord\Element\Text) {
+                                $text .= $textElement->getText();
+                            }
+                        }
+                        $text .= "\n";
+                    }
+                }
+            }
+
+            $textBody = preg_replace('/^\s*[\r\n]/m', '', $text);
+
+            $prompt = env('PROMPT') . "\n\nHere is the content:\n$textBody";
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . env('GROQ_API_KEY_FOR_QUESTION'),
+                'Content-Type' => 'application/json',
+            ])->post('https://api.groq.com/openai/v1/chat/completions', [
+                'model' => 'meta-llama/llama-4-scout-17b-16e-instruct',
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => $prompt
+                    ]
+                ]
+            ]);
+
+            if ($response->failed()) {
+                DB::rollBack();
+                Telegraph::chat($chatId)->message("<b>Iltimos, qaytadan urinib ko'ring!</b>")->send();
+                return;
+            }
+
+            $questionName = QuestionName::where('chat_id', $chatId)
+                ->where('active', false)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $formattedText = $response->json()['choices'][0]['message']['content'];
+
+            $formattedText = preg_replace('/(?<!\n)([A-D]\))/', "\n$1", $formattedText);
+            $formattedText = preg_replace('/(?<!\n)(Javob:)/', "\n$1", $formattedText);
+            $formattedText = preg_replace('/[ \t]+/', ' ', $formattedText);
+            $formattedText = preg_replace("/\n{2,}/", "\n", $formattedText);
+
+            $fileContext = html_entity_decode(trim($formattedText), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            $pattern = '/(.*?)\nA\)(.*?)\nB\)(.*?)\nC\)(.*?)\nD\)(.*?)\nJavob:\s*(.*?)(?=\n\d+\.\s|$)/s';
+            preg_match_all($pattern, $fileContext, $matches, PREG_SET_ORDER);
+
+            if (empty($matches)) {
+                DB::rollBack();
+                Telegraph::chat($chatId)->message("❌ Testlar strukturasida xatolik bor! Iltimos shablon bo‘yicha yuboring.")->send();
+                return;
+            }
+
+            $questions = [];
+            $testNumber = 1;
+
+            foreach ($matches as $match) {
+                $question = preg_replace('/^\d+\.\s*/', '', trim($match[1]));
+                $a = trim($match[2]);
+                $b = trim($match[3]);
+                $c = trim($match[4]);
+                $d = trim($match[5]);
+                $correct = strtolower(trim($match[6]));
+
+                $questions[] = [
+                    'title' => $question,
+                    'a_variant' => $a,
+                    'b_variant' => $b,
+                    'c_variant' => $c,
+                    'd_variant' => $d,
+                    'correct_answer' => $correct,
+                    'key' => $questionName->question_name,
+                    'active' => true,
+                    'test_number' => $testNumber,
+                    'question_name_id' => $questionName->id
+                ];
+
+                $testNumber++;
+            }
+
+            Question::insert($questions);
+
+            $freeQuestionCount = QuestionName::where('chat_id', $chatId)
+                ->where('active', true)->where('free', true)->count();
+
+            $questionName->update([
+                'active' => true,
+                'free' => $freeQuestionCount < env('FREE_QUESTION_COUNT'),
+            ]);
+
+            DB::commit();
+
+            $this->updateUserPage($chatId, User::HOME_PAGE);
+
+            Telegraph::chat($chatId)->message("✅ Testlar muvaffaqqiyatli yaratildi!")->send();
+            Telegraph::chat($chatId)->html("Yaratilgan testlarni <b>Test ishlash</b> bo‘limida ko‘rishingiz mumkin!")->send();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Telegraph::chat($chatId)->message("❌ Xatolik: " . $e->getMessage())->send();
+            return;
+        }
     }
 
 

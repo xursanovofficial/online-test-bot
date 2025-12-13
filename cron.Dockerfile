@@ -2,7 +2,7 @@ ARG PHP_VERSION=8.3
 ARG COMPOSER_VERSION=2.7
 
 # BASE STAGE
-FROM php:${PHP_VERSION}-fpm-alpine AS base
+FROM php:${PHP_VERSION}-cli-alpine AS build
 
 WORKDIR /var/www
 
@@ -42,15 +42,14 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignor
 
 # Copy application
 COPY . .
-RUN composer dump-autoload
+RUN composer dump-autoload --optimize --no-dev
 
 
 # PRODUCTION STAGE
-FROM php:${PHP_VERSION}-fpm-alpine AS production
+FROM php:${PHP_VERSION}-cli-alpine AS production
 
 WORKDIR /var/www
 
-# Install runtime dependencies only
 RUN apk add --no-cache \
     nginx \
     libzip \
@@ -59,9 +58,7 @@ RUN apk add --no-cache \
     postgresql-libs \
     icu-libs \
     zip \
-    unzip \
-    sqlite \
-    sqlite-libs
+    unzip
 
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
@@ -69,29 +66,18 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 # Create non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
+# Copy built PHP extensions and config
+COPY --from=build /usr/local/lib/php/extensions /usr/local/lib/php/extensions
+COPY --from=build /usr/local/etc/php/conf.d /usr/local/etc/php/conf.d
+
 # Copy built application
 COPY --from=builder --chown=appuser:appgroup /var/www .
 COPY ./.docker/local.ini $PHP_INI_DIR/conf.d/custom.ini
-COPY ./.docker/nginx.conf /etc/nginx/nginx.conf
 
+# Ensure cron runs as root but application files are owned by appuser
+USER root
+COPY ./.docker/crontab /etc/crontabs/root
+RUN mkdir -p /root/.cache/crontab
 
-# Configure permissions and directories for nginx
-RUN chown -R appuser:appgroup /var/www && \
-chmod -R 755 /var/www && \
-mkdir -p /var/run/nginx && \
-mkdir -p /var/log/nginx && \
-mkdir -p /var/lib/nginx && \
-chown -R appuser:appgroup /var/run/nginx && \
-chown -R appuser:appgroup /var/log/nginx && \
-chown -R appuser:appgroup /var/lib/nginx
-
-EXPOSE 80
-
-# Set the entrypoint script
-COPY ./.docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-USER appuser
-
-CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
+# Start cron in the foreground
+CMD ["crond", "-f"]

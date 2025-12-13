@@ -24,15 +24,15 @@ build_app:
   variables:
     IMAGE_TAG: "$ENV_NAME"
 
-build_cron:
-  extends: .build-template
-  tags:
-    - shared
-    - dind
-  variables:
-    IMAGE_NAME: "$CI_REGISTRY_IMAGE/cron"
-    IMAGE_TAG: "$ENV_NAME"
-    DOCKERFILE_PATH: cron.Dockerfile
+# build_cron:
+#   extends: .build-template
+#   tags:
+#     - shared
+#     - dind
+#   variables:
+#     IMAGE_NAME: "$CI_REGISTRY_IMAGE/cron"
+#     IMAGE_TAG: "$ENV_NAME"
+#     DOCKERFILE_PATH: cron.Dockerfile
 
 deploy:
   extends: .deploy-compose-template
@@ -40,8 +40,8 @@ deploy:
     DC_IMAGE_NAME: "$CI_REGISTRY_IMAGE"
     DC_IMAGE_TAG: "$ENV_NAME"
     DC_APP_PORT: "$DEPLOYMENT_APP_PORT"
-    DC_CRON_IMAGE_NAME: "$CI_REGISTRY_IMAGE/cron"
-    DC_CRON_IMAGE_TAG: "$ENV_NAME"
+    # DC_CRON_IMAGE_NAME: "$CI_REGISTRY_IMAGE/cron"
+    # DC_CRON_IMAGE_TAG: "$ENV_NAME"
     DEPLOYMENT_SERVER_HOST: "$DEPLOYMENT_HOST"
     APP_DOTENV_FILE: "$APP_DOTENV"
     

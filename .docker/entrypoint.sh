@@ -11,8 +11,8 @@ if [ ! -f "$SQLITE_DB" ]; then
     touch "$SQLITE_DB"
 fi
 
-chown appuser:appgroup "$SQLITE_DB"
-chmod 664 "$SQLITE_DB"
+chown 1000:1000 ./database/database.sqlite
+chmod 664 ./database/database.sqlite
 
 echo "Running pre-start commands..."
 php artisan migrate

@@ -10,5 +10,27 @@ services:
     volumes:
       - bot_storage:/var/www/storage
 
+  # scheduler:
+  #   image: ${DC_CRON_IMAGE_NAME}:${DC_CRON_IMAGE_TAG}
+  #   restart: unless-stopped
+  #   env_file:
+  #     - path: ./.env
+  #       required: false
+  #   volumes:
+  #     - bot_storage:/var/www/storage
+  
+  # worker:
+  #   image: ${DC_IMAGE_NAME}:${DC_IMAGE_TAG}
+  #   restart: unless-stopped
+  #   command: "php artisan queue:work redis --sleep=3 --tries=1 --max-time=10"
+  #   deploy:
+  #     replicas: 2
+  #   volumes:
+  #     - bot_storage:/var/www/storage
+  #   env_file:
+  #     - path: ./.env
+  #       required: false
+
+
 volumes:
   bot_storage:

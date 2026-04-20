@@ -1,0 +1,37 @@
+name: Build and Deploy Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+
+jobs:
+  setup:
+    runs-on: self-hosted
+    outputs:
+      env_name: ${{ steps.set-env.outputs.env_name }}
+    steps:
+      - name: Determine environment
+        id: set-env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "env_name=production" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            echo "env_name=staging" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: setup
+    uses: ./.github/workflows/build-template.yml
+    with:
+      env_name: ${{ needs.setup.outputs.env_name }}
+      image_tag: ${{ needs.setup.outputs.env_name }}
+    secrets: inherit
+
+  deploy:
+    needs: [setup, build]
+    uses: ./.github/workflows/deploy-template.yml
+    with:
+      env_name: ${{ needs.setup.outputs.env_name }}
+    secrets: inherit

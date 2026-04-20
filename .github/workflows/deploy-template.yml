@@ -9,10 +9,10 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment: ${{ inputs.env_name }}
     env:
-      DC_IMAGE_NAME: ${{ github.event.repository.name }}
+      DC_IMAGE_NAME: "${{ vars.CONTAINER_REGISTRY }}/${{ secrets.CONTAINER_REGISTRY_USER }}/$IMAGE_NAME"
       DC_IMAGE_TAG: ${{ inputs.env_name }}
       DC_APP_PORT: ${{ vars.DEPLOYMENT_APP_PORT }}
       COMPOSE_PROJECT_NAME: ${{ github.event.repository.name }}

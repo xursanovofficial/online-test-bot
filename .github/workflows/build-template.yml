@@ -20,8 +20,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment: ${{ inputs.env_name }}
+    container:
+      image: xursanov/dind:v1
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+      options: --user root
     env:
       IMAGE_NAME: ${{ github.event.repository.name }}
       PIPELINE_IID: ${{ github.run_number }}

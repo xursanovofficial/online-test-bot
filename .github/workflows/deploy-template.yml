@@ -11,6 +11,11 @@ jobs:
   deploy:
     runs-on: self-hosted
     environment: ${{ inputs.env_name }}
+    container:
+      image: xursanov/dind:v1
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+      options: --user root
     env:
       DC_IMAGE_NAME: "${{ vars.CONTAINER_REGISTRY }}/${{ secrets.CONTAINER_REGISTRY_USER }}/$IMAGE_NAME"
       DC_IMAGE_TAG: ${{ inputs.env_name }}
@@ -20,11 +25,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # - name: Install required tools
-      #   run: |
-      #     sudo SUDO_ASKPASS_REQUIRE=never apt-get update
-      #     sudo SUDO_ASKPASS_REQUIRE=never apt-get install -y rsync moreutils gettext-base
 
       - name: Setup SSH key
         run: |

@@ -39,7 +39,8 @@ jobs:
       - name: Build and push Docker image
         run: |
           set -e
-          DOCKER_BUILDKIT=1 docker build -f ${{ inputs.dockerfile_path }} -t $IMAGE_NAME:$PIPELINE_IID ${{ inputs.build_context }}
-          docker tag $IMAGE_NAME:$PIPELINE_IID $IMAGE_NAME:${{ inputs.image_tag }}
-          docker push $IMAGE_NAME:$PIPELINE_IID
-          docker push $IMAGE_NAME:${{ inputs.image_tag }}
+          IMAGE_REPO="${{ vars.CONTAINER_REGISTRY }}/${{ secrets.CONTAINER_REGISTRY_USER }}/$IMAGE_NAME"
+          DOCKER_BUILDKIT=1 docker build -f ${{ inputs.dockerfile_path }} -t ${IMAGE_REPO}:$PIPELINE_IID ${{ inputs.build_context }}
+          docker tag ${IMAGE_REPO}:$PIPELINE_IID ${IMAGE_REPO}:${{ inputs.image_tag }}
+          docker push ${IMAGE_REPO}:$PIPELINE_IID
+          docker push ${IMAGE_REPO}:${{ inputs.image_tag }}

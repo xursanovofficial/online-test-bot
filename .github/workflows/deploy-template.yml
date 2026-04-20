@@ -21,10 +21,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install required tools
-        run: |
-          sudo SUDO_ASKPASS_REQUIRE=never apt-get update
-          sudo SUDO_ASKPASS_REQUIRE=never apt-get install -y rsync moreutils gettext-base
+      # - name: Install required tools
+      #   run: |
+      #     sudo SUDO_ASKPASS_REQUIRE=never apt-get update
+      #     sudo SUDO_ASKPASS_REQUIRE=never apt-get install -y rsync moreutils gettext-base
 
       - name: Setup SSH key
         run: |

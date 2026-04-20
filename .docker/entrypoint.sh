@@ -11,11 +11,10 @@ if [ ! -f "$SQLITE_DB" ]; then
     touch "$SQLITE_DB"
 fi
 
-chown 1000:1000 ./database/database.sqlite
-chmod 664 ./database/database.sqlite
+chmod 664 "$SQLITE_DB" 2>/dev/null || true
 
 echo "Running pre-start commands..."
-php artisan migrate
+php artisan migrate --force
 php artisan storage:link
 php artisan app:make-webhook
 

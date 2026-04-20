@@ -23,8 +23,8 @@ jobs:
 
       - name: Install required tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rsync moreutils gettext-base
+          sudo SUDO_ASKPASS_REQUIRE=never apt-get update
+          sudo SUDO_ASKPASS_REQUIRE=never apt-get install -y rsync moreutils gettext-base
 
       - name: Setup SSH key
         run: |

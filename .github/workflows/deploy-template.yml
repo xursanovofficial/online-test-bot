@@ -16,7 +16,7 @@ jobs:
       DC_IMAGE_TAG: ${{ inputs.env_name }}
       DC_APP_PORT: ${{ vars.DEPLOYMENT_APP_PORT }}
       COMPOSE_PROJECT_NAME: ${{ github.event.repository.name }}
-      COMPOSE_FILE_DEST: /home/jasur/${{ github.event.repository.name }}/docker-compose.yml
+      COMPOSE_FILE_DEST: /home/deployer/${{ github.event.repository.name }}/docker-compose.yml
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,7 +56,7 @@ jobs:
             deployer@${{ vars.DEPLOYMENT_HOST }} "
             set -e &&
             export COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME &&
-            docker login -u ${{ secrets.CI_REGISTRY_USER }} -p ${{ secrets.CI_REGISTRY_PASSWORD }} ${{ vars.CI_REGISTRY }} &&
+            docker login -u ${{ secrets.CONTAINER_REGISTRY_USER }} -p ${{ secrets.CONTAINER_REGISTRY_PASSWORD }} ${{ vars.CONTAINER_REGISTRY }} &&
             docker compose -f $COMPOSE_FILE_DEST pull &&
             docker compose -f $COMPOSE_FILE_DEST up --force-recreate --remove-orphans -d &&
             docker image prune -f"

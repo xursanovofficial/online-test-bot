@@ -26,12 +26,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # - name: Setup SSH key
-      #   run: |
-      #     mkdir -p ~/.ssh
-      #     echo "${{ secrets.DEPLOYER_SSH_PRIVATE_KEY }}" > ~/.ssh/deployer_key
-      #     chmod 600 ~/.ssh/deployer_key
-
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:

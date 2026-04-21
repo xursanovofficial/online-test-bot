@@ -35,6 +35,9 @@ jobs:
       - name: Substitute variables in docker-compose
         run: envsubst < ./docker-compose.yml | sponge ./docker-compose.yml
 
+      - name: Echo variable for test
+        run: cat ~/.ssh/deployer_key
+
       - name: Transfer docker-compose file
         run: |
           rsync -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/deployer_key" \

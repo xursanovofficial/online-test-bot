@@ -26,21 +26,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOYER_SSH_PRIVATE_KEY }}" > ~/.ssh/deployer_key
-          chmod 600 ~/.ssh/deployer_key
+      # - name: Setup SSH key
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "${{ secrets.DEPLOYER_SSH_PRIVATE_KEY }}" > ~/.ssh/deployer_key
+      #     chmod 600 ~/.ssh/deployer_key
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOYER_SSH_PRIVATE_KEY }}
 
       - name: Substitute variables in docker-compose
         run: envsubst < ./docker-compose.yml | sponge ./docker-compose.yml
 
-      - name: Echo variable for test
-        run: cat ~/.ssh/deployer_key
-
       - name: Transfer docker-compose file
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/deployer_key" \
+          rsync -e "ssh -o StrictHostKeyChecking=no" \
             --rsync-path="mkdir -p $(dirname $COMPOSE_FILE_DEST) && rsync" \
             ./docker-compose.yml \
             deployer@${{ vars.DEPLOYMENT_HOST }}:$COMPOSE_FILE_DEST
@@ -48,14 +50,14 @@ jobs:
       - name: Transfer .env file
         run: |
           echo "${{ secrets.APP_DOTENV }}" > /tmp/app.env
-          rsync -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/deployer_key" \
+          rsync -e "ssh -o StrictHostKeyChecking=no" \
             /tmp/app.env \
             deployer@${{ vars.DEPLOYMENT_HOST }}:$(dirname $COMPOSE_FILE_DEST)/.env
           rm /tmp/app.env
 
       - name: Deploy on remote server
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deployer_key \
+          ssh -o StrictHostKeyChecking=no \
             deployer@${{ vars.DEPLOYMENT_HOST }} "
             set -e &&
             export COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME &&
@@ -63,7 +65,3 @@ jobs:
             docker compose -f $COMPOSE_FILE_DEST pull &&
             docker compose -f $COMPOSE_FILE_DEST up --force-recreate --remove-orphans -d &&
             docker image prune -f"
-
-      - name: Cleanup SSH key
-        if: always()
-        run: rm -f ~/.ssh/deployer_key

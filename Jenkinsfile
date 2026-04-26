@@ -18,18 +18,17 @@ pipeline {
                     // Determine environment based on branch
                     if (env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main') {
                         env.ENV_NAME = 'production'
-                        env.IMAGE_TAG = 'production'
                     } else if (env.BRANCH_NAME == 'staging' || env.GIT_BRANCH == 'origin/staging') {
                         env.ENV_NAME = 'staging'
-                        env.IMAGE_TAG = 'staging'
                     } else {
                         echo "Branch not main or staging, skipping deployment"
                         currentBuild.result = 'NOT_BUILT'
                         return
                     }
 
-                    echo "Environment: ${ENV_NAME}"
-                    echo "Image Tag: ${IMAGE_TAG}"
+                    env.HOST_CRED_ID = "${ENV_NAME}-host"
+                    env.PORT_CRED_ID = "${ENV_NAME}-port"
+                    env.ENV_CRED_ID = "${ENV_NAME}-env"
                 }
             }
         }
@@ -71,11 +70,11 @@ pipeline {
                                 .
 
                             # Tag with env name
-                            docker tag ${IMAGE_REPO}:${PIPELINE_IID} ${IMAGE_REPO}:${IMAGE_TAG}
+                            docker tag ${IMAGE_REPO}:${PIPELINE_IID} ${IMAGE_REPO}:${ENV_NAME}
 
                             # Push both tags
                             docker push ${IMAGE_REPO}:${PIPELINE_IID}
-                            docker push ${IMAGE_REPO}:${IMAGE_TAG}
+                            docker push ${IMAGE_REPO}:${ENV_NAME}
 
                             echo "Docker image built and pushed successfully"
                         '''
@@ -127,7 +126,7 @@ EOF
 
                             # Set variables for substitution
                             export DC_IMAGE_NAME="${CONTAINER_REGISTRY}/${REGISTRY_USER}/${IMAGE_NAME}"
-                            export DC_IMAGE_TAG="${IMAGE_TAG}"
+                            export DC_IMAGE_TAG="${ENV_NAME}"
                             export DC_APP_PORT="${DEPLOYMENT_APP_PORT}"
                             export COMPOSE_PROJECT_NAME="${IMAGE_NAME}"
 

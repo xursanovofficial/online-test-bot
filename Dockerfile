@@ -78,7 +78,6 @@ COPY ./.docker/local.ini $PHP_INI_DIR/conf.d/custom.ini
 COPY ./.docker/nginx.conf /etc/nginx/nginx.conf
 COPY ./.docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-app.conf
 
-
 # Configure permissions and directories for nginx
 RUN chown -R appuser:appgroup /var/www && \
 chmod -R 755 /var/www && \

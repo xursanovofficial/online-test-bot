@@ -63,7 +63,7 @@ pipeline {
                             echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin "$CONTAINER_REGISTRY"
 
                             # Build and push Docker image
-                            IMAGE_REPO="${CONTAINER_REGISTRY}/${REGISTRY_USER}/${IMAGE_NAME}"
+                            IMAGE_REPO="${REGISTRY_USER}/${IMAGE_NAME}"
 
                             # Build with BuildKit
                             DOCKER_BUILDKIT=1 docker build \\

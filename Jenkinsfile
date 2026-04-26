@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'xursanov/dind:v1'
+            args '-v /var/run/docker.sock:/var/run/docker.sock --user root'
+        }
+    }
 
     environment {
         IMAGE_NAME = "${env.JOB_NAME.toLowerCase()}"

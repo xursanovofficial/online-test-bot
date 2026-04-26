@@ -3,7 +3,6 @@ pipeline {
         label 'dind'
     }
 
-
     environment {
         IMAGE_NAME = "${env.JOB_NAME.toLowerCase()}"
         PIPELINE_IID = "${env.BUILD_NUMBER}"

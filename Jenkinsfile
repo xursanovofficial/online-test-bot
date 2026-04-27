@@ -97,15 +97,15 @@ pipeline {
                             credentialsId: 'deployer-ssh-key',
                             keyFileVariable: 'SSH_KEY'
                         ),
-                        file(credentialsId: 'app-dotenv', variable: 'DOTENV_FILE'),
+                        file(credentialsId: env.ENV_CRED_ID, variable: 'DOTENV_FILE'),
                         usernamePassword(
                             credentialsId: 'container-registry',
                             usernameVariable: 'REGISTRY_USER',
                             passwordVariable: 'REGISTRY_PASSWORD'
                         ),
                         string(credentialsId: 'container-registry-url', variable: 'CONTAINER_REGISTRY'),
-                        string(credentialsId: 'deployment-host', variable: 'DEPLOYMENT_HOST'),
-                        string(credentialsId: 'deployment-app-port', variable: 'DEPLOYMENT_APP_PORT')
+                        string(credentialsId: env.HOST_CRED_ID, variable: 'DEPLOYMENT_HOST'),
+                        string(credentialsId: env.PORT_CRED_ID, variable: 'DEPLOYMENT_APP_PORT')
                     ]) {
                         sh '''
                             set -e
@@ -128,7 +128,7 @@ EOF
                             chmod 600 ~/.ssh/config
 
                             # Set variables for substitution
-                            export DC_IMAGE_NAME="${CONTAINER_REGISTRY}/${REGISTRY_USER}/${IMAGE_NAME}"
+                            export DC_IMAGE_NAME="${REGISTRY_USER}/${IMAGE_NAME}"
                             export DC_IMAGE_TAG="${ENV_NAME}"
                             export DC_APP_PORT="${DEPLOYMENT_APP_PORT}"
                             export COMPOSE_PROJECT_NAME="${IMAGE_NAME}"

@@ -18,6 +18,8 @@ pipeline {
         stage('Setup') {
             steps {
                 script {
+                    global.sendTelegramNotification = load('jenkins/notifications.groovy')
+
                     // Determine environment based on branch
                     if (env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main') {
                         env.ENV_NAME = 'production'
@@ -168,23 +170,23 @@ pipeline {
             script {
                 // Skip notification if deployment was skipped (non-deploy branches)
                 if (currentBuild.result != 'NOT_BUILT') {
-                    TelegramNotification('SUCCESS')
+                    sendTelegramNotification('SUCCESS')
                 }
             }
         }
         failure {
             script {
-                TelegramNotification('FAILURE')
+                sendTelegramNotification('FAILURE')
             }
         }
         aborted {
             script {
-                TelegramNotification('ABORTED')
+                sendTelegramNotification('ABORTED')
             }
         }
         unstable {
             script {
-                TelegramNotification('UNSTABLE')
+                sendTelegramNotification('UNSTABLE')
             }
         }
         always {

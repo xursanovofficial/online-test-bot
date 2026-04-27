@@ -1,4 +1,4 @@
-def call(String status) {
+def sendTelegramNotification(String status) {
     try {
         withCredentials([
             string(credentialsId: 'telegram-bot-token', variable: 'TG_BOT_TOKEN'),
@@ -101,3 +101,5 @@ def call(String status) {
         echo "Telegram notification failed: ${e.message}"
     }
 }
+
+return this

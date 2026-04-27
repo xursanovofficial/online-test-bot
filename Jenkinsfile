@@ -112,23 +112,17 @@ pipeline {
 
                             echo "Starting deployment to ${ENV_NAME} environment..."
 
-                            # Setup SSH
+                            # Setup SSH directory and copy key with proper permissions
                             mkdir -p ~/.ssh
                             chmod 700 ~/.ssh
+                            cp "${SSH_KEY}" ~/.ssh/deployer_key
+                            chmod 600 ~/.ssh/deployer_key
 
-                            # Configure SSH
-                            cat > ~/.ssh/config << EOF
-Host deployment-host
-    HostName ${DEPLOYMENT_HOST}
-    User deployer
-    IdentityFile ${SSH_KEY}
-    StrictHostKeyChecking no
-    UserKnownHostsFile /dev/null
-EOF
-                            chmod 600 ~/.ssh/config
+                            # SSH options used everywhere
+                            SSH_OPTS="-i $HOME/.ssh/deployer_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
 
                             # Set variables for substitution
-                            export DC_IMAGE_NAME="${REGISTRY_USER}/${IMAGE_NAME}"
+                            export DC_IMAGE_NAME="${CONTAINER_REGISTRY}/${REGISTRY_USER}/${IMAGE_NAME}"
                             export DC_IMAGE_TAG="${ENV_NAME}"
                             export DC_APP_PORT="${DEPLOYMENT_APP_PORT}"
                             export COMPOSE_PROJECT_NAME="${IMAGE_NAME}"
@@ -140,18 +134,18 @@ EOF
                             mv ./docker-compose.yml.tmp ./docker-compose.yml
 
                             # Transfer docker-compose file
-                            ssh -o StrictHostKeyChecking=no deployer@${DEPLOYMENT_HOST} "mkdir -p $(dirname $COMPOSE_FILE_DEST)"
-                            rsync -e "ssh -o StrictHostKeyChecking=no" \
+                            ssh $SSH_OPTS deployer@${DEPLOYMENT_HOST} "mkdir -p $(dirname $COMPOSE_FILE_DEST)"
+                            rsync -e "ssh $SSH_OPTS" \
                                 ./docker-compose.yml \
                                 deployer@${DEPLOYMENT_HOST}:${COMPOSE_FILE_DEST}
 
                             # Transfer .env file
-                            rsync -e "ssh -o StrictHostKeyChecking=no" \
+                            rsync -e "ssh $SSH_OPTS" \
                                 ${DOTENV_FILE} \
                                 deployer@${DEPLOYMENT_HOST}:$(dirname ${COMPOSE_FILE_DEST})/.env
 
                             # Deploy on remote server
-                            ssh -o StrictHostKeyChecking=no deployer@${DEPLOYMENT_HOST} "
+                            ssh $SSH_OPTS deployer@${DEPLOYMENT_HOST} "
                                 set -e &&
                                 export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} &&
                                 export COMPOSE_FILE=${COMPOSE_FILE_DEST} &&
@@ -168,7 +162,6 @@ EOF
             }
         }
     }
-
 
     post {
         always {

@@ -5,7 +5,6 @@ pipeline {
 
     environment {
         IMAGE_NAME = "${env.JOB_NAME.split('/')[0].toLowerCase()}"
-        // IMAGE_NAME = "${env.JOB_NAME.toLowerCase()}"
         PIPELINE_IID = "${env.BUILD_NUMBER}"
     }
 

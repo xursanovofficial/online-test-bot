@@ -122,7 +122,7 @@ pipeline {
                             SSH_OPTS="-i $HOME/.ssh/deployer_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
 
                             # Set variables for substitution
-                            export DC_IMAGE_NAME="${CONTAINER_REGISTRY}/${REGISTRY_USER}/${IMAGE_NAME}"
+                            export DC_IMAGE_NAME="${REGISTRY_USER}/${IMAGE_NAME}"
                             export DC_IMAGE_TAG="${ENV_NAME}"
                             export DC_APP_PORT="${DEPLOYMENT_APP_PORT}"
                             export COMPOSE_PROJECT_NAME="${IMAGE_NAME}"

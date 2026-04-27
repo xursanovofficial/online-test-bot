@@ -154,21 +154,20 @@ pipeline {
                 script {
                     withCredentials([
                         usernamePassword(
-                            credentialsId: 'container-registry',
-                            usernameVariable: 'REGISTRY_USER',
-                            passwordVariable: 'REGISTRY_PASSWORD'
-                        ),
-                        string(credentialsId: 'container-registry-url', variable: 'CONTAINER_REGISTRY')
+                            credentialsId: 'github-token',
+                            usernameVariable: 'GITHUB_USER',
+                            passwordVariable: 'GITHUB_TOKEN'
+                        )
                     ]) {
                         sh '''
                             set -e
                             echo "Building Docker image..."
 
-                            # Login to container registry
-                            echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin "$CONTAINER_REGISTRY"
+                            # Login to GitHub Container Registry
+                            echo "$GITHUB_TOKEN" | docker login -u "$GITHUB_USER" --password-stdin ghcr.io
 
                             # Build and push Docker image
-                            IMAGE_REPO="${REGISTRY_USER}/${IMAGE_NAME}"
+                            IMAGE_REPO="ghcr.io/xursanovofficial/${IMAGE_NAME}"
 
                             # Build with BuildKit
                             DOCKER_BUILDKIT=1 docker build \\
@@ -178,12 +177,14 @@ pipeline {
 
                             # Tag with env name
                             docker tag ${IMAGE_REPO}:${PIPELINE_IID} ${IMAGE_REPO}:${ENV_NAME}
+                            docker tag ${IMAGE_REPO}:${PIPELINE_IID} ${IMAGE_REPO}:latest
 
-                            # Push both tags
+                            # Push all tags
                             docker push ${IMAGE_REPO}:${PIPELINE_IID}
                             docker push ${IMAGE_REPO}:${ENV_NAME}
+                            docker push ${IMAGE_REPO}:latest
 
-                            echo "Docker image built and pushed successfully"
+                            echo "Docker image built and pushed successfully to GitHub Container Registry"
                         '''
                     }
                 }
@@ -203,11 +204,10 @@ pipeline {
                         ),
                         file(credentialsId: env.ENV_CRED_ID, variable: 'DOTENV_FILE'),
                         usernamePassword(
-                            credentialsId: 'container-registry',
-                            usernameVariable: 'REGISTRY_USER',
-                            passwordVariable: 'REGISTRY_PASSWORD'
+                            credentialsId: 'github-token',
+                            usernameVariable: 'GITHUB_USER',
+                            passwordVariable: 'GITHUB_TOKEN'
                         ),
-                        string(credentialsId: 'container-registry-url', variable: 'CONTAINER_REGISTRY'),
                         string(credentialsId: env.HOST_CRED_ID, variable: 'DEPLOYMENT_HOST'),
                         string(credentialsId: env.PORT_CRED_ID, variable: 'DEPLOYMENT_APP_PORT')
                     ]) {
@@ -226,7 +226,7 @@ pipeline {
                             SSH_OPTS="-i $HOME/.ssh/deployer_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
 
                             # Set variables for substitution
-                            export DC_IMAGE_NAME="${REGISTRY_USER}/${IMAGE_NAME}"
+                            export DC_IMAGE_NAME="ghcr.io/xursanovofficial/${IMAGE_NAME}"
                             export DC_IMAGE_TAG="${ENV_NAME}"
                             export DC_APP_PORT="${DEPLOYMENT_APP_PORT}"
                             export COMPOSE_PROJECT_NAME="${IMAGE_NAME}"
@@ -253,7 +253,7 @@ pipeline {
                                 set -e &&
                                 export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} &&
                                 export COMPOSE_FILE=${COMPOSE_FILE_DEST} &&
-                                docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASSWORD} ${CONTAINER_REGISTRY} &&
+                                docker login -u ${GITHUB_USER} -p ${GITHUB_TOKEN} ghcr.io &&
                                 docker compose -f ${COMPOSE_FILE_DEST} pull &&
                                 docker compose -f ${COMPOSE_FILE_DEST} up --force-recreate --remove-orphans -d &&
                                 docker image prune -f

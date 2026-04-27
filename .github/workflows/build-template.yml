@@ -22,6 +22,9 @@ jobs:
   build:
     runs-on: self-hosted
     environment: ${{ inputs.env_name }}
+    permissions:
+      contents: read
+      packages: write
     container:
       image: xursanov/dind:v1
       volumes:
@@ -45,7 +48,17 @@ jobs:
         run: |
           set -e
           IMAGE_REPO="${{ vars.CONTAINER_REGISTRY }}/${{ secrets.CONTAINER_REGISTRY_USER }}/$IMAGE_NAME"
-          DOCKER_BUILDKIT=1 docker build -f ${{ inputs.dockerfile_path }} -t ${IMAGE_REPO}:$PIPELINE_IID ${{ inputs.build_context }}
+          REPO_URL="https://github.com/${{ github.repository }}"
+
+          DOCKER_BUILDKIT=1 docker build \
+            -f ${{ inputs.dockerfile_path }} \
+            --label "org.opencontainers.image.source=${REPO_URL}" \
+            --label "org.opencontainers.image.description=${IMAGE_NAME}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.licenses=MIT" \
+            -t ${IMAGE_REPO}:$PIPELINE_IID \
+            ${{ inputs.build_context }}
+
           docker tag ${IMAGE_REPO}:$PIPELINE_IID ${IMAGE_REPO}:${{ inputs.image_tag }}
           docker push ${IMAGE_REPO}:$PIPELINE_IID
           docker push ${IMAGE_REPO}:${{ inputs.image_tag }}

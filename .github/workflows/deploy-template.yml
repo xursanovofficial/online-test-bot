@@ -11,6 +11,9 @@ jobs:
   deploy:
     runs-on: self-hosted
     environment: ${{ inputs.env_name }}
+    permissions:
+      contents: read
+      packages: read
     container:
       image: xursanov/dind:v1
       volumes:

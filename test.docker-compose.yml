@@ -1,0 +1,112 @@
+services:
+  traefik:
+    image: traefik:v3.6.14
+    restart: unless-stopped
+    command:
+      # ===== Docker provider =====
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=payment_service_network"
+      
+      # ===== Entrypoints =====
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.metrics.address=:8082"
+      
+      # ===== Dashboard & API =====
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      
+      # ===== Logging (Traefik o'z loglari) =====
+      - "--log.level=DEBUG"                          # Debug uchun DEBUG, prod'da INFO
+      - "--log.format=json"                          # JSON format — log agregatorlar uchun qulay
+      - "--log.filepath=/var/log/traefik/traefik.log"
+      
+      # ===== Access Logs (har bir so'rov uchun) =====
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.filepath=/var/log/traefik/access.log"
+      - "--accesslog.bufferingsize=100"              # Performance uchun
+      - "--accesslog.fields.defaultmode=keep"
+      - "--accesslog.fields.headers.defaultmode=keep" # Headerlarni ham loglash
+      
+      # ===== Metrics (Prometheus) =====
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.entrypoint=metrics"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
+      - "--metrics.prometheus.addRoutersLabels=true"
+      
+      # ===== Tracing (OpenTelemetry) =====
+      - "--tracing=true"
+      - "--tracing.otlp=true"
+      - "--tracing.otlp.http=true"
+      - "--tracing.otlp.http.endpoint=http://10.106.0.61:4318"
+      - "--tracing.servicename=traefik"
+      - "--tracing.sampleRate=1.0"                   # 100% sampling, prod'da 0.1 qiling
+      
+      # ===== Ping =====
+      - "--ping=true"
+      - "--ping.entrypoint=traefik"
+    ports:
+      - "8081:80"
+      - "8080:8080"
+      - "8082:8082"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - payment_service_network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: ./.env
+        required: false
+    networks:
+      - payment_service_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=payment_service_network"
+      
+      # Router — barcha so'rovlarni qabul qiladi
+      - "traefik.http.routers.app.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.app.entrypoints=web"
+      - "traefik.http.routers.app.priority=1"
+      
+      # Service
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+      
+      # LB healthcheck
+      - "traefik.http.services.app.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.app.loadbalancer.healthcheck.interval=10s"
+      - "traefik.http.services.app.loadbalancer.healthcheck.timeout=3s"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      replicas: 5
+
+networks:
+  payment_service_network:
+    driver: bridge
+    name: payment_service_network
